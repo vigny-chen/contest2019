@@ -1,0 +1,26 @@
+[
+  {
+    "UserName": "马丁",
+    "Rank": "1",
+    "memberId": "6236609999",
+    "Integral": "9860"
+  },
+  {
+    "UserName": "王立",
+    "Rank": "2",
+    "memberId": "6630009999",
+    "Integral": "48860"
+  },
+  {
+    "UserName": "李想",
+    "Rank": "3",
+    "memberId": "8230009999",
+    "Integral": "98860"
+  },
+  {
+    "UserName": "张三",
+    "Rank": "4",
+    "memberId": "9230009999",
+    "Integral": "198860"
+  }
+]
