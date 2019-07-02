@@ -15,7 +15,8 @@ describe('OrderApp', () => {
       const actualRepresentation = (new OrderApp()).checkout(inputStr);
 
       const expectedResult = await readFile(param.outputFile, 'utf8');
-      assert.equal(actualRepresentation, expectedResult.trim());
+      // assert.equal(actualRepresentation, expectedResult.trim());
+      assert.equal(actualRepresentation.replace(/\r\n/gi, '\n'), expectedResult.trim().replace(/\r\n/gi, '\n'));
     });
   });
 });

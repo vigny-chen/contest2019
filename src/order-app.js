@@ -1,4 +1,6 @@
 import OrderRepresentation from './output/order-representation';
+import OrderItem from './output/order-item';
+import DiscountItem from './output/discount-item';
 var fs = require('fs');
 export default class OrderApp {
   checkout(orderCommand) {
@@ -12,13 +14,13 @@ export default class OrderApp {
       {
         productNo: '001001',
         productName: '世园会五十国钱币册',
-        price: 998.00,
+        price: '998.00',
         PreferentialPolicy: []
       },
       {
         productNo: '001002',
         productName: '2019北京世园会纪念银章大全40g',
-        price: 1380.00,
+        price: '1380.00',
         PreferentialPolicy: [
           {
             type: 1,
@@ -29,7 +31,7 @@ export default class OrderApp {
       {
         productNo: '003001',
         productName: '招财进宝',
-        price: 1580.00,
+        price: '1580.00',
         PreferentialPolicy: [
           {
             type: 1,
@@ -40,7 +42,7 @@ export default class OrderApp {
       {
         productNo: '003002',
         productName: '水晶之恋',
-        price: 980.00,
+        price: '980.00',
         PreferentialPolicy: [
           {
             type: 2,
@@ -55,7 +57,7 @@ export default class OrderApp {
       {
         productNo: '002002',
         productName: '中国经典钱币套装',
-        price: 998.00,
+        price: '998.00',
         PreferentialPolicy: [
           {
             type: 4,
@@ -72,7 +74,7 @@ export default class OrderApp {
       {
         productNo: '002001',
         productName: '守扩之羽比翼双飞4.8g',
-        price: 1080.00,
+        price: '1080.00',
         PreferentialPolicy: [
           {
             type: 1,
@@ -91,7 +93,7 @@ export default class OrderApp {
       {
         productNo: '002003',
         productName: '中国银象棋12g',
-        price: 698.00,
+        price: '698.00',
         PreferentialPolicy: [
           {
             type: 1,
@@ -115,22 +117,38 @@ export default class OrderApp {
         ]
       },
     ];
-
+    
     let orderCommandItems = orderCommandJSON.items; // 用户订单
-    let amount = 0; //合计总额
+    let amount = 0; // 合计总额
+    let realAmount = 0; // 实际支付金额
     let menuData = [];
+    let newIntegral = 0; // 新增积分
+    let lastIntegral = 0; // 最后积分
+    let lastRank = 1;
+    let orderItems = []; // 订单数据
+    let discountItems = []; // 优惠数据
+    // singleProductTotalPrice
     for (let i = 0; i < orderCommandItems.length; i++) {
-      let sigleProduct = {};
+      let singleProduct = {};
       for (let j = 0; j < items.length; j++) {
         if (orderCommandItems[i].product === items[j].productNo) {
-          sigleProduct = items[j];
-          let sigleProductTotalPrice = items[j].price * orderCommandItems[i].amount;
-          amount += sigleProductTotalPrice;
-          sigleProduct['sigleProductTotalPrice'] = sigleProductTotalPrice;
-          sigleProduct['amount'] = orderCommandItems[i].amount;
+          singleProduct = items[j];
+          let singleProductTotalPrice = items[j].price * orderCommandItems[i].amount;
+          amount += singleProductTotalPrice;
+          singleProduct['singleProductTotalPrice'] = singleProductTotalPrice;
+          singleProduct['amount'] = orderCommandItems[i].amount;
+          orderItems.push( // 订单数据
+            new OrderItem({
+              productNo: singleProduct.productNo,
+              productName: singleProduct.productName,
+              price: Number(singleProduct.price),
+              amount: singleProduct.amount,
+              subTotal: singleProduct.singleProductTotalPrice
+            })
+          );
         }
       }
-      menuData.push(sigleProduct);
+      menuData.push(singleProduct);
     }
 
     // 3.客户支付时，可以使用打折券，对参与打折的商品享受折扣。
@@ -171,19 +189,26 @@ export default class OrderApp {
         let disdiscountAmount = Math.max(...singleProductforAllDiscounts);
         discountAmt += disdiscountAmount;
         menuData[i]['disdiscountAmount'] = disdiscountAmount;
+        if (disdiscountAmount > 0) {
+          discountItems.push(
+            new DiscountItem({
+              productNo: singleProduct.productNo,
+              productName: singleProduct.productName,
+              discount: -disdiscountAmount
+            })
+          );
+        }
       }
-      singleProductforAllDiscounts.length > 0 && (discountAmt += Math.max(...singleProductforAllDiscounts));
+      
     }
-    // console.log('__________________________')
-    // console.log(discountAmt);
+    realAmount = amount - discountAmt; // 算出实际支付金额
     // 折扣
     function computerDiscountAmt (discountsItem, singleProduct) {
       let singleDiscountAmt = 0;
       let canDiscount = userDiscount.filter(function(item) {
         return (+item) === discountsItem.discount;
       })[0];
-      canDiscount && (singleDiscountAmt += singleProduct.sigleProductTotalPrice - singleProduct.sigleProductTotalPrice * canDiscount);
-      console.log('折扣：' + singleDiscountAmt)
+      canDiscount && (singleDiscountAmt += singleProduct.singleProductTotalPrice - singleProduct.singleProductTotalPrice * canDiscount);
       return singleDiscountAmt;
     }
     // 第N件半价
@@ -208,10 +233,10 @@ export default class OrderApp {
     }
     // 满减
     function computerFullReduction (discountsItem, singleProduct) {
-      let sigleProductTotalPrice = singleProduct.sigleProductTotalPrice; // 一种商品总价
+      let singleProductTotalPrice = singleProduct.singleProductTotalPrice; // 一种商品总价
       let minPrice = discountsItem.minPrice; // 满足金额
       let cutDownPrice = discountsItem.cutDown; // 满减金额
-      if (sigleProductTotalPrice >= minPrice) {
+      if (singleProductTotalPrice >= minPrice) {
         return cutDownPrice;
       } else {
         return 0;
@@ -219,23 +244,56 @@ export default class OrderApp {
     }
 
     // 2.客户可以使用账户余额购买贵金属，按客户等级计算积分，如果达到升级积分，则提升客户等级。
-    fs.readFile('test/resources/users.json', function (err, data) {
-      if (err) {
-        return err;
-      }
-      let usersData = JSON.parse(data.toString());
-      let loginUserData = usersData.filter(function (user) {
-        return user.memberId === orderCommandJSON.memberId;
-      })[0];
-      // computerRunkAndIntegral(loginUserData);
-    });
+    let rankToScoreMultiple= { // 等级对应倍数
+      '1': {multiple: 1, rankNamae: '普卡'},
+      '2': {multiple: 1.5, rankNamae: '金卡'},
+      '3': {multiple: 1.8, rankNamae: '白金卡'},
+      '4': {multiple: 2, rankNamae: '钻石卡'}
+    };
+    let usersData = JSON.parse(fs.readFileSync('test/resources/users.json').toString());
+    let loginUserData = usersData.filter(function (user) {
+      return user.memberId === orderCommandJSON.memberId;
+    })[0];
+    computerRunkAndIntegral(loginUserData);
 
     // 客户可以使用账户余额购买贵金属，按客户等级计算积分，如果达到升级积分，则提升客户等级。
-    // computerRunkAndIntegral(userData) {
-
-    // }
-    // 4.根据促销规则，计算优惠金额。
-    // 5.打印销售凭证。
-    return (new OrderRepresentation({})).toString();
+    function computerRunkAndIntegral(userData) {
+      newIntegral = rankToScoreMultiple[userData.Rank].multiple * realAmount;
+      lastIntegral = parseFloat(newIntegral) + parseFloat(userData.Integral);
+      judgeUserRank ();
+    }
+    // 根据付款后积分判断等级
+    function judgeUserRank () {
+      if (lastIntegral >= 100000) {
+        lastRank = '4';
+      } else if (lastIntegral >= 50000) {
+        lastRank = '3';
+      } else if (lastIntegral >= 10000) {
+        lastRank = '2';
+      } else {
+        lastRank = '1';
+      }
+    }
+    let resultData = {
+      orderId: orderCommandJSON.orderId, // 订单号
+      createTime: new Date(orderCommandJSON.createTime), // 订单创建时间
+      memberNo: loginUserData.memberId, // 会员编号
+      memberName: loginUserData.UserName,// 会员姓名
+      oldMemberType: loginUserData.Rank,// 原会员等级
+      newMemberType: rankToScoreMultiple[lastRank].rankNamae,// 新会员等级。当新老等级不一致时，视为升级
+      memberPointsIncreased: newIntegral, // 本次消费会员新增的积分
+      memberPoints: lastIntegral, // 会员最新的积分( = 老积分 + memberPointsIncreased)
+      orderItems: orderItems,// 订单明细
+      totalPrice: amount,// 订单总金额
+      discounts: discountItems, // 优惠明细
+      totalDiscountPrice: discountAmt, // 优惠总金额
+      receivables: realAmount, // 应收金额
+      payments: [{
+        type: '余额支付',
+        amount: realAmount
+      }], // 付款记录
+      discountCards: orderCommandJSON.discountCards// 付款使用的打折券
+    };
+    return (new OrderRepresentation(resultData)).toString();
   }
 }
