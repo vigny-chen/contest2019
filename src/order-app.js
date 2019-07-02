@@ -146,33 +146,77 @@ export default class OrderApp {
     for (let i = 0; i < menuData.length; i++) {
       const singleProduct = menuData[i];
       let PreferentialPolicy = singleProduct.PreferentialPolicy;
+      let singleProductforAllDiscounts = [];
       for (let j = 0; j < PreferentialPolicy.length; j++) {
         const discountsItem = PreferentialPolicy[j];
         switch (discountsItem.type) {
-          case 1:
-              computerDiscountAmt(discountsItem, singleProduct);
+          case 1: // 折扣
+            singleProductforAllDiscounts.push(computerDiscountAmt(discountsItem, singleProduct));
             break;
-        
+          case 2: // 第N件半价
+            singleProductforAllDiscounts.push(computerHalfPrice(discountsItem, singleProduct));
+            break;
+          case 3: // 满送
+            singleProductforAllDiscounts.push(computerPresentNum(discountsItem, singleProduct));
+            break;
+          case 4: // 满减
+            singleProductforAllDiscounts.push(computerFullReduction(discountsItem, singleProduct));
+            break;
           default:
             break;
         }
       }
-      
+      // 取最大优惠金额
+      if (singleProductforAllDiscounts.length > 0) {
+        let disdiscountAmount = Math.max(...singleProductforAllDiscounts);
+        discountAmt += disdiscountAmount;
+        menuData[i]['disdiscountAmount'] = disdiscountAmount;
+      }
+      singleProductforAllDiscounts.length > 0 && (discountAmt += Math.max(...singleProductforAllDiscounts));
     }
+    // console.log('__________________________')
+    // console.log(discountAmt);
     // 折扣
     function computerDiscountAmt (discountsItem, singleProduct) {
+      let singleDiscountAmt = 0;
       let canDiscount = userDiscount.filter(function(item) {
         return (+item) === discountsItem.discount;
       })[0];
-      canDiscount && (discountAmt += singleProduct.sigleProductTotalPrice - singleProduct.sigleProductTotalPrice * canDiscount);
-      // console.log('////////////////////////////////')
-      // console.log(discountAmt);
-      // console.log(singleProduct.sigleProductTotalPrice);
+      canDiscount && (singleDiscountAmt += singleProduct.sigleProductTotalPrice - singleProduct.sigleProductTotalPrice * canDiscount);
+      console.log('折扣：' + singleDiscountAmt)
+      return singleDiscountAmt;
     }
-    // 计算优惠信息
-    function computerOrderDiscounts (productItem) {
-
-    }  
+    // 第N件半价
+    function computerHalfPrice (discountsItem, singleProduct) {
+      let totalNum = singleProduct.amount; // 单件商品总数
+      let halfPriceNum = discountsItem.halfPriceNum; // 第几件半价
+      if (totalNum >= halfPriceNum) {
+        return parseFloat(singleProduct.price) / 2;
+      } else {
+        return 0;
+      }
+    }
+    // 满送
+    function computerPresentNum (discountsItem, singleProduct) {
+      let totalNum = singleProduct.amount; // 单件商品总数
+      let presentNum = discountsItem.presentNum; // 第几个满送
+      if (totalNum - 1 >= presentNum) {
+        return parseFloat(singleProduct.price);
+      } else {
+        return 0;
+      }
+    }
+    // 满减
+    function computerFullReduction (discountsItem, singleProduct) {
+      let sigleProductTotalPrice = singleProduct.sigleProductTotalPrice; // 一种商品总价
+      let minPrice = discountsItem.minPrice; // 满足金额
+      let cutDownPrice = discountsItem.cutDown; // 满减金额
+      if (sigleProductTotalPrice >= minPrice) {
+        return cutDownPrice;
+      } else {
+        return 0;
+      }
+    }
 
     // 2.客户可以使用账户余额购买贵金属，按客户等级计算积分，如果达到升级积分，则提升客户等级。
     fs.readFile('test/resources/users.json', function (err, data) {
