@@ -16,6 +16,7 @@ export default class OrderApp {
         productName: '世园会五十国钱币册',
         test1: '1111',
         price: '998.00',
+        test:'0000',
         PreferentialPolicy: []
       },
       {
