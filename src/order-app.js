@@ -13,7 +13,7 @@ export default class OrderApp {
     const items = [
       {
         productNo: '001001',
-        productName: '世园会五十国钱币册22222000',
+        productName: '1111世园会五十国钱币册22222000',
         price: '998.00',
         PreferentialPolicy: []
       },
